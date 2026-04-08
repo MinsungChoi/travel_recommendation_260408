@@ -19,14 +19,15 @@ class TravelRecommender:
 
         # [v5.3/5.5] Trend Factor 구성 요소 계산
         city_counts = self.master['대상도시'].value_counts()
-        max_internal = city_counts.max() if not city_counts.empty else 1
+        max_internal = max(city_counts.max() if not city_counts.empty else 1, 1)
         
         # 외부 데이터 최댓값이 0일 경우(데이터 로드 실패 등)를 대비해 최소 1로 고정하여 ZeroDivisionError 방지
-        ext_values = self.external_trends.values()
+        ext_values = list(self.external_trends.values())
         max_external = max(max(ext_values) if ext_values else 1, 1)
 
         city_trend_map = {}
         for city in city_counts.index:
+            # 안전한 나누기를 위해 분모가 0이 아님을 한 번 더 보장
             internal_idx = city_counts[city] / max_internal
             external_idx = self.external_trends.get(city, 0) / max_external
             hybrid_idx = (internal_idx * 0.5) + (external_idx * 0.5)
@@ -72,8 +73,9 @@ class TravelRecommender:
 
             # H3: 가격 적합성 (1.12 pts) - 실제 가격 기반
             if price > 0:
-                # 예산 대비 가격 차이 분석 (적을수록 좋음)
-                price_diff_ratio = abs(price - user_budget) / user_budget
+                # 예산 대비 가격 차이 분석 (분모가 0원인 경우 방지)
+                safe_budget = max(user_budget, 10000) 
+                price_diff_ratio = abs(price - safe_budget) / safe_budget
                 h3_score = max(0, 1.12 * (1 - price_diff_ratio))
                 item_reasons.append(f"💎 H3(예산): 고객님 예산 대비 상품 가격({price:,.0f}원) 적합성 검증.")
             else:
